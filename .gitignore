@@ -9,4 +9,5 @@ htmlcov/
 dist/
 build/
 *.log
+!docs/dialogs/*.log
 .DS_Store
