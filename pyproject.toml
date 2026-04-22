@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-agent"
+version = "0.1.0"
+description = "MVP AI-agent on local LLM (Qwen3-4B via lemonade), JSON-prompting loop"
+requires-python = ">=3.11"
+dependencies = [
+  "openai>=1.40",
+  "httpx>=0.27",
+  "beautifulsoup4>=4.12",
+  "markdownify>=0.13",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "pytest-mock>=3",
+  "respx>=0.21",
+]
+
+[project.scripts]
+ai-agent = "agent.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = [
+  "integration: tests that hit a live LLM — skipped in unit runs",
+]
+addopts = "-ra"
