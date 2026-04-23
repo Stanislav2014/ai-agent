@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from collections.abc import Sequence
 from typing import Protocol
 
@@ -39,14 +40,19 @@ class Agent:
             {"role": "user", "content": task},
         ]
         previous_action: tuple[str, str] | None = None
+        run_start = time.perf_counter()
+        steps_taken = 0
 
         for step in range(1, self._max_steps + 1):
+            steps_taken = step
+            llm_start = time.perf_counter()
             raw = self._llm.chat(messages)
-            print(f"\n[Step {step}]")
+            llm_dt = time.perf_counter() - llm_start
 
             try:
                 data = parse_llm_response(raw)
             except ParseError as exc:
+                print(f"\n[Step {step}]  (llm {llm_dt:.2f}s)")
                 print(f"Parse error: {exc}")
                 messages.append({"role": "assistant", "content": raw})
                 messages.append(
@@ -64,28 +70,40 @@ class Agent:
 
             if "final_answer" in data:
                 answer = str(data["final_answer"])
+                total_dt = time.perf_counter() - run_start
+                print(f"\n[Step {step}]  (llm {llm_dt:.2f}s)")
                 print(f"Final: {answer}")
+                print(f"\nTotal: {total_dt:.2f}s, {step} step(s)")
                 return answer
 
             action = data["action"]
             args = data.get("args") or {}
             thought = data.get("thought", "")
 
-            print(f"Thought: {thought}")
-            print(f"Action: {action}")
-            print(f"Args: {args}")
-
             key = (action, json.dumps(args, sort_keys=True, ensure_ascii=False))
             if previous_action is not None and previous_action == key:
+                print(f"\n[Step {step}]  (llm {llm_dt:.2f}s)")
+                print(f"Thought: {thought}")
+                print(f"Action: {action}")
+                print(f"Args: {args}")
                 print(LOOP_ABORT_MESSAGE, file=sys.stderr)
                 return LOOP_ABORT_MESSAGE
             previous_action = key
 
+            tool_start = time.perf_counter()
             observation = self._executor.execute(action, args)
+            tool_dt = time.perf_counter() - tool_start
             if len(observation) > _OBSERVATION_CAP:
                 observation = observation[:_OBSERVATION_CAP] + "...[truncated]"
+
+            print(f"\n[Step {step}]  (llm {llm_dt:.2f}s · tool {tool_dt:.2f}s)")
+            print(f"Thought: {thought}")
+            print(f"Action: {action}")
+            print(f"Args: {args}")
             print(f"Observation: {observation}")
             messages.append({"role": "tool", "content": observation})
 
+        total_dt = time.perf_counter() - run_start
+        print(f"\nTotal: {total_dt:.2f}s, {steps_taken} step(s) (max-steps reached)", file=sys.stderr)
         print(MAX_STEPS_MESSAGE, file=sys.stderr)
         return MAX_STEPS_MESSAGE

@@ -110,3 +110,22 @@ def test_logs_printed_in_required_format(capsys):
     assert "Action: calculator" in out
     assert "Observation" in out
     assert "Final:" in out
+
+
+def test_step_and_total_timings_are_printed(capsys):
+    llm = ScriptedLLM(
+        [
+            '{"action": "calculator", "args": {"expression": "2+2"}}',
+            '{"final_answer": "4"}',
+        ]
+    )
+    agent = Agent(llm=llm, executor=Executor(), max_steps=3)
+    agent.run("add")
+    out = capsys.readouterr().out
+    # step header carries llm+tool timings
+    assert "(llm " in out and "· tool " in out
+    # final step shows llm-only timing
+    assert out.count("(llm ") == 2
+    # total summary present
+    assert "Total:" in out
+    assert "step(s)" in out

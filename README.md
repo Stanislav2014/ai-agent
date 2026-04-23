@@ -5,8 +5,9 @@
 - JSON-prompting loop (`thought → action → observation → …`)
 - Четыре инструмента: `calculator`, `read_file`, `http_get` (c HTML→MD), `web_search` (DuckDuckGo)
 - `MAX_STEPS=8` + loop-guard
+- Per-step timings: `(llm X.XXs · tool X.XXs)` + `Total: X.XXs, N step(s)`
 - Docker compose на общей `llm-net`
-- 56 unit + 3 integration tests
+- 58 unit + 3 integration tests
 
 ## Быстрый старт
 

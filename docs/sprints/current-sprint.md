@@ -15,10 +15,11 @@
 
 - **D-02** — web_search tool (DuckDuckGo) + HTML→Markdown в http_get ([spec](../tasks/D-02_WEB_SEARCH.md)) · 2026-04-23
 - **D-03** — CLI `--model` flag + Makefile `MODEL=…` проброс ([spec](../tasks/D-03_CLI_MODEL_FLAG.md)) · 2026-04-23
+- **D-04** — Step timings в выводе агента (`(llm … · tool …)` + `Total:`) ([spec](../tasks/D-04_STEP_TIMINGS.md)) · 2026-04-23
 
 ## Definition of Done (sprint-level)
 
-- [x] 57 unit-тестов зелёных (было 47, добавлено 10: +9 для web_search/html-md, +1 для --model)
+- [x] 58 unit-тестов зелёных (было 47, добавлено 11: +9 web_search/html-md, +1 --model, +1 timings)
 - [x] 4-й acceptance-лог для web_search в `docs/dialogs/`
 - [x] Зависимости `beautifulsoup4`, `markdownify` в `pyproject.toml`, образ пересобран
 - [x] `architecture.md` обновлён (новый tool, HTML→MD этап)

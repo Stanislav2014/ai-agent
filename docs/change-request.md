@@ -128,3 +128,41 @@
 ### History
 
 - 2026-04-23 — открыт и реализован, Merged
+
+---
+
+## D-04 — Step timings
+
+### Метадата
+
+| Поле | Значение |
+|---|---|
+| **Task ID** | `D-04` |
+| **Branch** | `main` |
+| **Task spec** | [docs/tasks/D-04_STEP_TIMINGS.md](tasks/D-04_STEP_TIMINGS.md) |
+| **Started** | 2026-04-23 |
+| **Status** | `Merged` |
+| **Owner** | stan |
+
+### Goal
+
+Замерять и печатать длительность LLM-запроса и tool-выполнения на каждом шаге, плюс итоговое время и количество шагов.
+
+### Success criteria (verifiable)
+
+- [x] `make test` — 58/58 (+1 юнит `test_step_and_total_timings_are_printed`)
+- [x] Live-прогон показывает `(llm X.XXs · tool X.XXs)` в заголовке шага
+- [x] Финальный шаг показывает `(llm X.XXs)` и затем `Total: X.XXs, N step(s)`
+- [x] Acceptance-лог [docs/dialogs/test5-timings.log](dialogs/test5-timings.log)
+
+### Impact / change surface
+
+| Файл | Что изменилось |
+|---|---|
+| `src/agent/agent.py` | +`import time`, замеры `perf_counter` вокруг llm.chat и executor.execute, новый формат заголовков, `Total:` footer |
+| `tests/unit/test_agent.py` | +`test_step_and_total_timings_are_printed` |
+| `docs/dialogs/test5-timings.log` | demo-лог с таймингами на ТЗ-тесте №1 |
+
+### History
+
+- 2026-04-23 — открыт по запросу пользователя, реализован + юнит + acceptance-лог, Merged
