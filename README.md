@@ -49,6 +49,13 @@ python -m agent --model Qwen3-8B-GGUF "task"
 
 Приоритет: `--model` > env `LLM_MODEL` > дефолт `Qwen3-4B-Instruct-2507-GGUF`.
 
+Сохранить лог прогона в файл (не попадёт в git):
+
+```bash
+make run TASK='...' SAVE=1
+# → docs/dialogs/run-YYYYMMDD-HHMMSS.log
+```
+
 ## Тесты
 
 ```bash

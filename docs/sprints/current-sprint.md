@@ -16,6 +16,7 @@
 - **D-02** — web_search tool (DuckDuckGo) + HTML→Markdown в http_get ([spec](../tasks/D-02_WEB_SEARCH.md)) · 2026-04-23
 - **D-03** — CLI `--model` flag + Makefile `MODEL=…` проброс ([spec](../tasks/D-03_CLI_MODEL_FLAG.md)) · 2026-04-23
 - **D-04** — Step timings в выводе агента (`(llm … · tool …)` + `Total:`) ([spec](../tasks/D-04_STEP_TIMINGS.md)) · 2026-04-23
+- **D-05** — Auto-save run logs через `make run SAVE=1` (вне git) ([spec](../tasks/D-05_AUTO_SAVE_LOGS.md)) · 2026-04-23
 
 ## Definition of Done (sprint-level)
 

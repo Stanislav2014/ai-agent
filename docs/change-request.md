@@ -166,3 +166,41 @@
 ### History
 
 - 2026-04-23 — открыт по запросу пользователя, реализован + юнит + acceptance-лог, Merged
+
+---
+
+## D-05 — Auto-save run logs
+
+### Метадата
+
+| Поле | Значение |
+|---|---|
+| **Task ID** | `D-05` |
+| **Branch** | `main` |
+| **Task spec** | [docs/tasks/D-05_AUTO_SAVE_LOGS.md](tasks/D-05_AUTO_SAVE_LOGS.md) |
+| **Started** | 2026-04-23 |
+| **Status** | `Merged` |
+| **Owner** | stan |
+
+### Goal
+
+Флаг `SAVE=1` в Makefile сохраняет вывод агента в `docs/dialogs/run-<timestamp>.log` параллельно с печатью в терминал. Файлы вне git.
+
+### Success criteria (verifiable)
+
+- [x] `make run TASK='...' SAVE=1` создаёт `docs/dialogs/run-<ts>.log` с полным выводом
+- [x] Без `SAVE=1` поведение не меняется
+- [x] `git status` не видит `run-*.log` (исключение в `.gitignore`)
+- [x] Acceptance-снимки `test*-*.log` продолжают трекаться
+
+### Impact / change surface
+
+| Файл | Что изменилось |
+|---|---|
+| `Makefile` | +`SAVE ?=`, +`_LOG_FILE`, +`_RUN_CMD`, условная ветка `tee` в `run` |
+| `.gitignore` | +`docs/dialogs/run-*.log` |
+| `README.md` | +пример `SAVE=1` |
+
+### History
+
+- 2026-04-23 — открыт и реализован, Merged

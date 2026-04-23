@@ -10,4 +10,5 @@ dist/
 build/
 *.log
 !docs/dialogs/*.log
+docs/dialogs/run-*.log
 .DS_Store

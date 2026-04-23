@@ -2,7 +2,10 @@
 
 TASK ?= "Посчитай (123 + 456) * 2"
 MODEL ?=
+SAVE ?=
 _MODEL_ARG = $(if $(MODEL),--model $(MODEL),)
+_LOG_FILE = docs/dialogs/run-$(shell date +%Y%m%d-%H%M%S).log
+_RUN_CMD = docker compose --progress=quiet run --rm agent $(_MODEL_ARG) "$(TASK)"
 
 help:           ## show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -13,8 +16,13 @@ network:        ## create shared llm-net docker network (idempotent)
 build: network  ## build the agent image
 	docker compose build
 
-run:            ## run agent with TASK="..." [MODEL=...] (run `make build` first if code changed)
-	docker compose --progress=quiet run --rm agent $(_MODEL_ARG) "$(TASK)"
+run:            ## run agent with TASK="..." [MODEL=...] [SAVE=1] (build first if code changed)
+ifeq ($(SAVE),1)
+	@echo "(saving to $(_LOG_FILE))"
+	@$(_RUN_CMD) 2>&1 | tee $(_LOG_FILE)
+else
+	@$(_RUN_CMD)
+endif
 
 test:           ## unit tests inside container
 	docker compose run --rm --entrypoint pytest agent tests/unit -v
