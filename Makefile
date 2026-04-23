@@ -1,6 +1,8 @@
 .PHONY: help network build run test test-int test-cov shell clean logs venv
 
 TASK ?= "Посчитай (123 + 456) * 2"
+MODEL ?=
+_MODEL_ARG = $(if $(MODEL),--model $(MODEL),)
 
 help:           ## show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -11,8 +13,8 @@ network:        ## create shared llm-net docker network (idempotent)
 build: network  ## build the agent image
 	docker compose build
 
-run:            ## run agent with TASK="..."  (default: calc test; run `make build` first if code changed)
-	docker compose --progress=quiet run --rm agent "$(TASK)"
+run:            ## run agent with TASK="..." [MODEL=...] (run `make build` first if code changed)
+	docker compose --progress=quiet run --rm agent $(_MODEL_ARG) "$(TASK)"
 
 test:           ## unit tests inside container
 	docker compose run --rm --entrypoint pytest agent tests/unit -v

@@ -90,3 +90,41 @@
 
 - 2026-04-22 — started, изменения прилетели post-sprint-1 без спеки
 - 2026-04-23 — ретроактивно оформлено как D-02 в Sprint 2; добавлены юниты, acceptance-лог, docs; Merged
+
+---
+
+## D-03 — CLI `--model` flag
+
+### Метадата
+
+| Поле | Значение |
+|---|---|
+| **Task ID** | `D-03` |
+| **Branch** | `main` |
+| **Task spec** | [docs/tasks/D-03_CLI_MODEL_FLAG.md](tasks/D-03_CLI_MODEL_FLAG.md) |
+| **Started** | 2026-04-23 |
+| **Status** | `Merged` |
+| **Owner** | stan |
+
+### Goal
+
+Разрешить смену модели прямо из CLI (`--model`) и Makefile (`MODEL=…`), не обращаясь к env.
+
+### Success criteria (verifiable)
+
+- [x] `make test` — 57/57 (было 56, +1 тест)
+- [x] `python -m agent --help` показывает `--model`
+- [x] `make run TASK='...' MODEL=Qwen3-0.6B-GGUF` работает и печатает выбранную модель в header
+
+### Impact / change surface
+
+| Файл | Что изменилось |
+|---|---|
+| `src/agent/__main__.py` | +`--model` argparse-флаг, +`replace(settings, llm_model=...)` |
+| `tests/unit/test_cli.py` | +`test_model_flag_override` |
+| `Makefile` | +переменная `MODEL ?=`, +`_MODEL_ARG = $(if $(MODEL),--model $(MODEL),)` |
+| `README.md` | +пример с MODEL= и --model, пояснение приоритета |
+
+### History
+
+- 2026-04-23 — открыт и реализован, Merged

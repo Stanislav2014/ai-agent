@@ -27,11 +27,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ai-agent", description="MVP AI agent on local LLM")
     parser.add_argument("task", help="Task text for the agent to solve")
     parser.add_argument("--max-steps", type=int, default=None, help="Override MAX_STEPS")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Override LLM_MODEL (e.g. Qwen3-8B-GGUF, Qwen3-0.6B-GGUF)",
+    )
     args = parser.parse_args(argv)
 
     settings = load_settings()
     if args.max_steps is not None:
         settings = replace(settings, max_steps=args.max_steps)
+    if args.model is not None:
+        settings = replace(settings, llm_model=args.model)
 
     print(f"Task: {args.task}")
     print(f"Model: {settings.llm_model} @ {settings.llm_base_url}")

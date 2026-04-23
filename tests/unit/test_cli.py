@@ -44,6 +44,20 @@ def test_max_steps_flag_override(monkeypatch):
     assert captured["max_steps"] == 3
 
 
+def test_model_flag_override(monkeypatch, capsys):
+    captured = {}
+
+    def fake_build(settings):
+        captured["model"] = settings.llm_model
+        return DummyAgent("done")
+
+    monkeypatch.setattr(cli_module, "build_agent", fake_build)
+    cli_module.main(["--model", "Qwen3-8B-GGUF", "task"])
+    assert captured["model"] == "Qwen3-8B-GGUF"
+    # header line echoes the chosen model
+    assert "Qwen3-8B-GGUF" in capsys.readouterr().out
+
+
 def test_missing_task_errors_out(monkeypatch, capsys):
     # argparse exits with SystemExit(2) on missing positional
     monkeypatch.setattr(cli_module, "build_agent", lambda s: DummyAgent("x"))
