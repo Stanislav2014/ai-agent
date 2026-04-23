@@ -3,10 +3,10 @@
 Минимальный autonomous AI-агент на локальной LLM (Qwen3-4B через [lemonade-server](../lemonade-server/)).
 
 - JSON-prompting loop (`thought → action → observation → …`)
-- Три инструмента: `calculator`, `read_file`, `http_get`
+- Четыре инструмента: `calculator`, `read_file`, `http_get` (c HTML→MD), `web_search` (DuckDuckGo)
 - `MAX_STEPS=8` + loop-guard
 - Docker compose на общей `llm-net`
-- 47 unit + 3 integration tests, coverage 85 %
+- 56 unit + 3 integration tests
 
 ## Быстрый старт
 
@@ -27,9 +27,17 @@ make run TASK='Посчитай (123 + 456) * 2'
 make run TASK='Посчитай (123 + 456) * 2'
 make run TASK='Прочитай файл /workspace/test.txt и скажи сколько в нём строк'
 make run TASK='Сделай GET запрос к https://api.github.com и верни HTTP статус-код'
+make run TASK='Найди в интернете прогноз погоды в Москве на сегодня'
 ```
 
-Логи трёх прогонов — в [docs/dialogs/](docs/dialogs/).
+Логи прогонов — в [docs/dialogs/](docs/dialogs/).
+
+Сменить модель без ребилда:
+
+```bash
+LLM_MODEL=Qwen3-8B-GGUF make run TASK='...'
+LLM_MODEL=Qwen3-0.6B-GGUF make run TASK='...'
+```
 
 ## Тесты
 

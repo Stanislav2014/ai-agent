@@ -24,8 +24,13 @@ CLI (__main__.py) ──┐
       │   Executor   │──────▶│   tools.py         │
       │ executor.py  │       │  calculator        │
       └──────────────┘       │  read_file         │
-                             │  http_get          │
-                             └────────────────────┘
+                             │  http_get ─┐       │
+                             │  web_search│       │
+                             └────────────┼───────┘
+                                          │
+                                          ▼ (если Content-Type=html)
+                                   _html_to_markdown
+                                   (bs4 → markdownify)
 ```
 
 ## 2. Цикл агента
@@ -94,6 +99,10 @@ Unit-тесты каждого модуля не трогают соседей (
 13. **Calculator получил `__import__('os')`** → AST-walk белого списка (Constant/BinOp/UnaryOp/Num) отклоняет → `ToolError`.
 14. **Calculator: деление на ноль** → `ToolError` с понятным сообщением (не крашит процесс).
 15. **Запуск без `llm-net` network** → Docker compose падает на старте. `make network` идемпотентно создаёт её. Запуск lemonade и ai-agent в любом порядке.
+16. **`web_search`: DDG вернул 0 результатов** → возвращаем литерал `"No results."`, агент видит это как observation и может переформулировать запрос.
+17. **`web_search`: DDG timeout / блокировка UA** → `ToolError("search timed out …")` / `"search HTTP error: …"` → Executor превратит в `"Error: …"` observation, агент выбирает другой путь или сдаётся.
+18. **`http_get`: Content-Type HTML** → пайплайн `bs4` удаляет `script/style/nav/header/footer/aside/svg/form`, берёт `<main>`→`<article>`→`<body>`, `markdownify` переводит в MD, коллапс пустых строк. Экономит до 80 % токенов по сравнению с сырым HTML.
+19. **Несколько инстансов агента подряд с разной моделью** → lemonade сериализует инференс и перезагружает GGUF при смене модели (десятки секунд). Рекомендация: фиксировать `LLM_MODEL` для серии прогонов.
 
 ## 6. Почему такое разбиение
 

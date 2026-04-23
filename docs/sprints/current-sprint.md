@@ -1,7 +1,7 @@
-# Sprint 1 · 2026-04-19 → 2026-04-21
+# Sprint 2 · 2026-04-22 → 2026-04-23
 
-**Goal:** MVP AI-agent loop + 3 tools + Docker compose + full docs структура.
-**Status:** ✅ Closed on 2026-04-21.
+**Goal:** расширить агента поиском в интернете и оптимизацией HTML-ответов; оформить post-sprint-1 правки как полноценные задачи.
+**Status:** ✅ Closed on 2026-04-23.
 
 ## Kanban
 
@@ -13,29 +13,36 @@
 
 ### Done
 
-- **D-01** — MVP AI-agent loop with 3 tools ([spec](../tasks/D-01_MVP_AGENT_LOOP.md)) · 2026-04-21
+- **D-02** — web_search tool (DuckDuckGo) + HTML→Markdown в http_get ([spec](../tasks/D-02_WEB_SEARCH.md)) · 2026-04-23
 
 ## Definition of Done (sprint-level)
 
-- [x] 47 unit-тестов зелёных
-- [x] Coverage ≥ 85 %
-- [x] 3 integration теста из ТЗ зелёных
-- [x] Docker image собирается
-- [x] `docs/` структура развёрнута полностью по `docs-organization.md §1`
-- [x] Три acceptance-лога в `docs/dialogs/`
+- [x] 56 unit-тестов зелёных (было 47, добавлено 9)
+- [x] 4-й acceptance-лог для web_search в `docs/dialogs/`
+- [x] Зависимости `beautifulsoup4`, `markdownify` в `pyproject.toml`, образ пересобран
+- [x] `architecture.md` обновлён (новый tool, HTML→MD этап)
+- [x] `contracts/` — новый внешний контракт DDG
+- [x] Репозиторий запушен на GitHub: https://github.com/Stanislav2014/ai-agent
 
 ## Retrospective
 
 **Что пошло хорошо:**
-- TDD-подход оправдал себя — первый live-прогон агента сработал с первой попытки, никаких regression'ов.
-- Parser с balanced-brace scanner справился с реальным JSON от Qwen3-4B без правок (модель пишет чистый JSON).
-- Docker compose на общей `llm-net` — нулевая настройка сети, переиспользовали инфру `ai-bot`.
+- 4-й tool встал в существующую архитектуру (`Executor` + `_TOOL_DOCS` + юниты) без правок `agent.py`/`parser.py` — подтверждает изоляцию, заложенную в Sprint 1.
+- Парсинг DDG через BeautifulSoup + селекторы (`div.result` / `a.result__a` / `.result__snippet`) работает стабильно, 5 результатов за ~0.4 s.
+- `markdownify` + вырезание `nav`/`script`/`footer` до конвертации режет вес HTML-страницы до разумной пачки MD — агент теперь не захлёбывается при первом же GET.
 
 **Что можно улучшить:**
-- Изначально не знал, что `python3-venv` недоступен — потратил минуту на `virtualenv`. Стоит прописать в `instructions.md` для будущих проектов.
-- `llm.py` тестируется только integration. Для Sprint 2 добавить юнит с `openai.OpenAI` mocked.
+- Параллельно запускал несколько контейнеров агента — lemonade сериализует инференс и устроил шторм перезагрузок модели (`Loading llm: Qwen3-4B → 8B → 4B`). В `instructions.md` добавить «один прогон за раз, не переключать модель без необходимости».
+- HTML→MD внутри `http_get` полезен для read-pages, но не для API-ответов. Текущая эвристика по `Content-Type` работает, но не отличает «HTML-error page от JSON-API» — пока достаточно, если проявится — оформить флаг в D-06+.
 
-**Что уехало в Sprint 2+:**
-- Native function calling API (D-04)
-- Долгосрочная память (B-01/B-02)
-- Streaming (D-02)
+**Что уехало в Sprint 3+:**
+- CLI-флаг `--model` (открывается как D-03).
+- Native function calling API (D-04).
+- Долгосрочная память (B-01/B-02).
+- Streaming (D-02 старый, переименовать).
+
+---
+
+## Архив
+
+- Sprint 1 (2026-04-19 → 2026-04-21) — D-01 MVP agent loop. См. git history.

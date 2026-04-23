@@ -1,58 +1,66 @@
-# Change Request — Sprint 1 · 2026-04-21
+# Change Request — Sprint 2 · 2026-04-22 → 2026-04-23
 
 Зеркало активного спринта. Блоки остаются до sprint close, меняется только статус.
 
 ---
 
-## D-01 — MVP AI-agent loop with 3 tools
+## D-02 — web_search tool + HTML→Markdown
 
 ### Метадата
 
 | Поле | Значение |
 |---|---|
-| **Task ID** | `D-01` |
-| **Branch** | `feature/BAU/mvp-agent-loop` |
-| **Task spec** | [docs/tasks/D-01_MVP_AGENT_LOOP.md](tasks/D-01_MVP_AGENT_LOOP.md) |
-| **Started** | 2026-04-19 |
+| **Task ID** | `D-02` |
+| **Branch** | `main` (post-sprint-1 hotfix, ретроактивно оформлено) |
+| **Task spec** | [docs/tasks/D-02_WEB_SEARCH.md](tasks/D-02_WEB_SEARCH.md) |
+| **Started** | 2026-04-22 |
 | **Status** | `Merged` |
 | **Owner** | stan |
 
 ### Goal
 
-Реализовать autonomous AI-agent на Python с локальной LLM (Qwen3-4B через lemonade): JSON-prompting loop, 3 tool'а (calculator/read_file/http_get), loop-guard, MAX_STEPS, полный Docker compose wrapper.
+Расширить арсенал агента: научить искать информацию в интернете (DuckDuckGo HTML endpoint) и получать веб-страницы в Markdown вместо сырого HTML — чтобы не забивать context window разметкой.
 
 ### Success criteria (verifiable)
 
-- [x] Unit-тесты зелёные → `make test` — 47 passed
-- [x] Coverage ≥ 85 % → `make test-cov` — 85 %
-- [x] 3 live-теста из ТЗ проходят → `make test-int` — 3 passed, логи в [docs/dialogs/](dialogs/)
-- [x] Docker образ собирается → `make build` — OK
-- [x] Структура `docs/` развёрнута по `docs-organization.md §1` — все файлы и директории на месте
+- [x] `make test` — 56 passed (было 47, +9 юнитов на web_search и _html_to_markdown)
+- [x] 4-й acceptance-прогон записан в [docs/dialogs/test4-web-search.log](dialogs/test4-web-search.log)
+- [x] Live-тест: `"Найди в интернете прогноз погоды в Москве на сегодня"` → агент делает ровно 1 `web_search` и возвращает топ-5 источников с ссылками; общее время ~30 s
+- [x] `executor.describe()` содержит описание `web_search` — попадает в system prompt автоматически
+- [x] Репозиторий запушен на GitHub (public)
 
 ### Scope
 
 **In scope**
-- Python 3.11 package `src/agent/` с модулями: llm, tools, executor, parser, agent, prompts, config, __main__
-- Три tool'а (calculator/read_file/http_get) с жёсткими caps
-- Docker compose обёртка + Makefile
-- TDD-юниты + 3 integration smoke-теста
-- Полная структура docs/
+- `web_search(query) -> str` через `POST https://html.duckduckgo.com/html/`
+- HTML→Markdown конвертация в `http_get` (по Content-Type)
+- `beautifulsoup4` + `markdownify` как новые зависимости
+- Юниты на оба компонента
 
 **Out of scope**
-- Долгосрочная память / vector store
-- Planner / multi-step planning before execution
-- Streaming LLM responses
-- Function-calling API lemonade
-- Web UI / REST API
+- Альтернативные search API (Brave, SerpAPI)
+- JS-рендеринг (headless Chrome)
+- Retry/backoff на 429 от DDG
+- CLI-флаг `--model` (вынесен в D-03)
 
 ### Impact / change surface
 
-Новый проект — все файлы созданы с нуля.
+| Файл | Что изменилось |
+|---|---|
+| `src/agent/tools.py` | +`web_search`, +`_html_to_markdown`, +`_UA`, HTML-ветка в `http_get` |
+| `src/agent/executor.py` | +`web_search` в `DEFAULT_TOOLS` и `_TOOL_DOCS`; обновлён doc для `http_get` |
+| `pyproject.toml` | +`beautifulsoup4>=4.12`, +`markdownify>=0.13` |
+| `tests/unit/test_tools.py` | +9 тестов |
+| `docs/dialogs/test4-web-search.log` | новый acceptance-прогон |
+| `docker-compose.yml` | env-substitution + `LLM_TIMEOUT=180` |
+| `Makefile` | `run` больше не триггерит `build` |
+| `.env.example` | добавлен `LLM_TIMEOUT` |
 
 ### Uncertainty list
 
-1. ~~Модель «qwen3.5:4b» из ТЗ~~ — как отдельной не существует. Использовали `Qwen3-4B-Instruct-2507-GGUF` через lemonade.
-2. ~~Формат вывода модели~~ — parser допускает ```json fences``` и preamble; подтверждено на live-прогоне.
+1. ~~DDG может отдавать JS-only страницу~~ — `html.duckduckgo.com/html/` отдаёт чистый HTML. Проверено live.
+2. ~~`markdownify` раздувает вывод~~ — стриппер убирает script/style/nav/footer/aside до конвертации; + cap 5 KB.
+3. ~~UA-блокировка~~ — проставили стандартный UA; DDG пока отдаёт.
 
 ### Pending action items
 
@@ -60,26 +68,25 @@
 
 ### TDD phases
 
-- [x] Phase 0 — Research: lemonade доступен, модель есть в каталоге
-- [x] Phase 1 — Core: parser, tools, executor, agent loop
-- [x] Phase 2 — UI: CLI (`python -m agent`)
-- [x] Phase 3 — Gating: LLMError, ParseError-retry, loop-guard, caps
-- [x] Phase 4 — Testing: 47 unit + 3 integration, coverage 85 %
-- [x] Phase 5 — Review & docs: структура docs/ развёрнута
+- [x] Phase 0 — Research: DDG HTML endpoint живой, отдаёт `div.result`.
+- [x] Phase 1 — Core: `web_search` + `_html_to_markdown` в tools.py, регистрация в executor.
+- [x] Phase 2 — Testing: 9 юнитов с respx-моком DDG и inline-HTML фикстурами.
+- [x] Phase 3 — Integration: `make build` с новыми deps, live-прогон через lemonade.
+- [x] Phase 4 — Docs: task spec D-02, sprint doc, architecture.md, contracts.
 
 ### Regression watch
 
-- При расширении tools — не забыть `_TOOL_DOCS` в `executor.py`, иначе system prompt получит пустое описание.
-- При смене модели — проверить, что она уважает JSON-format (некоторые Qwen-варианты любят обернуть в ```json). Parser это уже покрывает, но для новых моделей стоит прогнать `make test-int`.
+- DDG может поменять разметку результатов — при `"No results."` на явном запросе проверить селекторы `div.result`, `a.result__a`, `.result__snippet`.
+- `markdownify` строго зависит от `bs4`; смена parser'а (`html.parser` → `lxml`) может слегка изменить вывод — если добавим `lxml`, нужно прогнать существующие HTML-юниты.
+- Если агент станет часто получать `429 Too Many Requests` от DDG — подмешать exponential backoff в `web_search` (сейчас нет).
 
 ### Checkpoints
 
-**Phase 1 checkpoint:** parser 10/10, tools 17/17, executor 7/7, agent 8/8 — все mocked юниты зелёные.
+**Phase 2 checkpoint:** 56/56 unit (было 47/47, +9 на web_search/html-md).
 
-**Phase 4 checkpoint:** 47 unit passed, coverage 85 %. `make build` OK. Три live-прогона → `1158`, `5`, `200 OK`. Логи в `docs/dialogs/`.
+**Phase 3 checkpoint:** live-прогон в ~30 s, 2 шага (web_search → final_answer), выдача 5 результатов с заголовками + URL + сниппетами.
 
 ### History
 
-- 2026-04-19 — started (ТЗ получено)
-- 2026-04-21 — design утверждён (4/4 A), реализация завершена
-- 2026-04-21 — 47/47 unit + 3/3 integration зелёные, Merged
+- 2026-04-22 — started, изменения прилетели post-sprint-1 без спеки
+- 2026-04-23 — ретроактивно оформлено как D-02 в Sprint 2; добавлены юниты, acceptance-лог, docs; Merged
