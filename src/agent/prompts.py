@@ -18,6 +18,7 @@ Rules
 - Never skip reasoning
 - If a tool can help — use it
 - Do NOT guess results of tools — always call them
+- For ANY arithmetic computation (addition, subtraction, multiplication, division, powers, modulo) you MUST call the `calculator` tool — never compute it in your head
 - You can perform multiple steps before giving a final answer
 - Stop when you are confident in the result
 
