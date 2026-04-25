@@ -33,8 +33,15 @@
 **Почему:** `read_file` только читает, `write_file` ещё не реализован.
 **Решение:** при добавлении `write_file` поменять на `rw`.
 
+### 🧟 0.6B-модель возвращает вложенный `final_answer`
+**Где:** проявление — в `=== ANSWER ===` печатается `{'final_answer': '5'}` вместо `5`.
+**Почему:** `Qwen3-0.6B-GGUF` иногда нарушает схему и возвращает `{"final_answer": {"final_answer": "..."}}`. Парсер пропускает это (берёт значение любого типа), `agent.py:72` оборачивает в `str()` — получается Python repr.
+**Минус:** косметика для CLI, но потенциально портит downstream-интеграции если кто-то парсит финальный ответ.
+**Решение:** отложено как D-09 в Sprint 3 backlog — добавить проверку `isinstance(final_answer, str)` в `parser.py` + ParseError → retry.
+**Воспроизведение:** `make run TASK='Прочитай файл /workspace/test.txt и скажи сколько в нём строк' MODEL=Qwen3-0.6B-GGUF` → акт-лог [test6-token-usage.log](dialogs/test6-token-usage.log) в 4B даёт `Final: 1158`, но 0.6B на той же задаче давал `Final: {'final_answer': '5'}`.
+
 ---
 
 ## Resolved
 
-(пусто — это Sprint 1)
+(пусто — пока ни одного решённого долга)

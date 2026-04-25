@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Protocol
 
 from openai import OpenAI
@@ -13,8 +14,15 @@ class LLMError(RuntimeError):
     """Raised for any transport or API failure talking to the LLM."""
 
 
+@dataclass(frozen=True)
+class ChatResult:
+    content: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+
 class LLMClient(Protocol):
-    def chat(self, messages: Sequence[dict]) -> str: ...
+    def chat(self, messages: Sequence[dict]) -> ChatResult: ...
 
 
 class LLMProvider:
@@ -31,7 +39,7 @@ class LLMProvider:
         self._timeout = timeout
         self._client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
 
-    def chat(self, messages: Sequence[dict]) -> str:
+    def chat(self, messages: Sequence[dict]) -> ChatResult:
         try:
             completion = self._client.chat.completions.create(
                 model=self._model,
@@ -47,4 +55,11 @@ class LLMProvider:
         content = completion.choices[0].message.content
         if content is None:
             raise LLMError("LLM returned empty content")
-        return content
+        usage = getattr(completion, "usage", None)
+        prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+        completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+        return ChatResult(
+            content=content,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )

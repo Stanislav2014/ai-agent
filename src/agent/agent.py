@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from agent.executor import Executor
+from agent.llm import ChatResult
 from agent.parser import ParseError, parse_llm_response
 from agent.prompts import render_system_prompt
 
@@ -19,7 +20,13 @@ _OBSERVATION_CAP = 4_000
 
 
 class _Chatty(Protocol):
-    def chat(self, messages: Sequence[dict]) -> str: ...
+    def chat(self, messages: Sequence[dict]) -> ChatResult: ...
+
+
+def _tok_segment(prompt_tokens: int, completion_tokens: int) -> str:
+    if prompt_tokens or completion_tokens:
+        return f" · {prompt_tokens} in / {completion_tokens} out"
+    return ""
 
 
 class Agent:
@@ -42,17 +49,23 @@ class Agent:
         previous_action: tuple[str, str] | None = None
         run_start = time.perf_counter()
         steps_taken = 0
+        total_in = 0
+        total_out = 0
 
         for step in range(1, self._max_steps + 1):
             steps_taken = step
             llm_start = time.perf_counter()
-            raw = self._llm.chat(messages)
+            result = self._llm.chat(messages)
             llm_dt = time.perf_counter() - llm_start
+            raw = result.content
+            total_in += result.prompt_tokens
+            total_out += result.completion_tokens
+            tok = _tok_segment(result.prompt_tokens, result.completion_tokens)
 
             try:
                 data = parse_llm_response(raw)
             except ParseError as exc:
-                print(f"\n[Step {step}]  (llm {llm_dt:.2f}s)")
+                print(f"\n[Step {step}]  (llm {llm_dt:.2f}s{tok})")
                 print(f"Parse error: {exc}")
                 messages.append({"role": "assistant", "content": raw})
                 messages.append(
@@ -71,9 +84,9 @@ class Agent:
             if "final_answer" in data:
                 answer = str(data["final_answer"])
                 total_dt = time.perf_counter() - run_start
-                print(f"\n[Step {step}]  (llm {llm_dt:.2f}s)")
+                print(f"\n[Step {step}]  (llm {llm_dt:.2f}s{tok})")
                 print(f"Final: {answer}")
-                print(f"\nTotal: {total_dt:.2f}s, {step} step(s)")
+                self._print_total(total_dt, step, total_in, total_out)
                 return answer
 
             action = data["action"]
@@ -82,7 +95,7 @@ class Agent:
 
             key = (action, json.dumps(args, sort_keys=True, ensure_ascii=False))
             if previous_action is not None and previous_action == key:
-                print(f"\n[Step {step}]  (llm {llm_dt:.2f}s)")
+                print(f"\n[Step {step}]  (llm {llm_dt:.2f}s{tok})")
                 print(f"Thought: {thought}")
                 print(f"Action: {action}")
                 print(f"Args: {args}")
@@ -96,7 +109,7 @@ class Agent:
             if len(observation) > _OBSERVATION_CAP:
                 observation = observation[:_OBSERVATION_CAP] + "...[truncated]"
 
-            print(f"\n[Step {step}]  (llm {llm_dt:.2f}s · tool {tool_dt:.2f}s)")
+            print(f"\n[Step {step}]  (llm {llm_dt:.2f}s · tool {tool_dt:.2f}s{tok})")
             print(f"Thought: {thought}")
             print(f"Action: {action}")
             print(f"Args: {args}")
@@ -104,6 +117,16 @@ class Agent:
             messages.append({"role": "tool", "content": observation})
 
         total_dt = time.perf_counter() - run_start
-        print(f"\nTotal: {total_dt:.2f}s, {steps_taken} step(s) (max-steps reached)", file=sys.stderr)
+        self._print_total(total_dt, steps_taken, total_in, total_out, suffix=" (max-steps reached)", stream=sys.stderr)
         print(MAX_STEPS_MESSAGE, file=sys.stderr)
         return MAX_STEPS_MESSAGE
+
+    @staticmethod
+    def _print_total(total_dt: float, steps: int, total_in: int, total_out: int,
+                     suffix: str = "", stream=None) -> None:
+        tok = f", {total_in} in / {total_out} out" if (total_in or total_out) else ""
+        line = f"\nTotal: {total_dt:.2f}s, {steps} step(s){tok}{suffix}"
+        if stream is None:
+            print(line)
+        else:
+            print(line, file=stream)

@@ -1,206 +1,63 @@
-# Change Request — Sprint 2 · 2026-04-22 → 2026-04-23
+# Change Request — Sprint 3 · 2026-04-25 → ?
 
 Зеркало активного спринта. Блоки остаются до sprint close, меняется только статус.
 
+Закрытые спринты: [Sprint 2 archive](sprints/sprint-2-archive.md) · [Sprint 2 delivery](sprints/sprint-2-delivery.md).
+
 ---
 
-## D-02 — web_search tool + HTML→Markdown
+## D-06 — Token usage в выводе шага
 
 ### Метадата
 
 | Поле | Значение |
 |---|---|
-| **Task ID** | `D-02` |
-| **Branch** | `main` (post-sprint-1 hotfix, ретроактивно оформлено) |
-| **Task spec** | [docs/tasks/D-02_WEB_SEARCH.md](tasks/D-02_WEB_SEARCH.md) |
-| **Started** | 2026-04-22 |
+| **Task ID** | `D-06` |
+| **Branch** | `main` |
+| **Task spec** | [docs/tasks/D-06_TOKEN_USAGE.md](tasks/D-06_TOKEN_USAGE.md) |
+| **Started** | 2026-04-25 |
 | **Status** | `Merged` |
 | **Owner** | stan |
 
 ### Goal
 
-Расширить арсенал агента: научить искать информацию в интернете (DuckDuckGo HTML endpoint) и получать веб-страницы в Markdown вместо сырого HTML — чтобы не забивать context window разметкой.
+Печатать токены, потраченные на каждом шаге (`N in / M out`) и за весь прогон. Lemonade уже отдаёт `usage` в OpenAI-совместимом ответе — мы их игнорировали.
 
 ### Success criteria (verifiable)
 
-- [x] `make test` — 56 passed (было 47, +9 юнитов на web_search и _html_to_markdown)
-- [x] 4-й acceptance-прогон записан в [docs/dialogs/test4-web-search.log](dialogs/test4-web-search.log)
-- [x] Live-тест: `"Найди в интернете прогноз погоды в Москве на сегодня"` → агент делает ровно 1 `web_search` и возвращает топ-5 источников с ссылками; общее время ~30 s
-- [x] `executor.describe()` содержит описание `web_search` — попадает в system prompt автоматически
-- [x] Репозиторий запушен на GitHub (public)
+- [x] `make test` — 60/60 (было 58, +2 теста на usage)
+- [x] Live-прогон 4B на задаче `(123 + 456) * 2`: Step 1 = 461 in / 93 out, Step 2 = 571 in / 14 out, итого 1032 in / 107 out
+- [x] Acceptance-лог [docs/dialogs/test6-token-usage.log](dialogs/test6-token-usage.log)
+- [x] Без `usage` от сервера агент работает как раньше (нет фактического суффикса)
 
 ### Scope
 
 **In scope**
-- `web_search(query) -> str` через `POST https://html.duckduckgo.com/html/`
-- HTML→Markdown конвертация в `http_get` (по Content-Type)
-- `beautifulsoup4` + `markdownify` как новые зависимости
-- Юниты на оба компонента
+- `ChatResult(content, prompt_tokens, completion_tokens)` как новый возвращаемый тип `LLMClient.chat()`.
+- `LLMProvider.chat()` читает `completion.usage`.
+- `Agent.run()` накапливает `total_in` / `total_out` и печатает их в шаге и в `Total:`.
+- Защитный fallback: при отсутствии `usage` — суффикс не печатается.
 
 **Out of scope**
-- Альтернативные search API (Brave, SerpAPI)
-- JS-рендеринг (headless Chrome)
-- Retry/backoff на 429 от DDG
-- CLI-флаг `--model` (вынесен в D-03)
+- `cache_n` / `prompt_per_second` из lemonade-extension `timings` (D-07).
+- Денежная стоимость прогона (нет смысла на локальной модели).
+- JSON-формат usage-логов для бенча (D-08+).
 
 ### Impact / change surface
 
 | Файл | Что изменилось |
 |---|---|
-| `src/agent/tools.py` | +`web_search`, +`_html_to_markdown`, +`_UA`, HTML-ветка в `http_get` |
-| `src/agent/executor.py` | +`web_search` в `DEFAULT_TOOLS` и `_TOOL_DOCS`; обновлён doc для `http_get` |
-| `pyproject.toml` | +`beautifulsoup4>=4.12`, +`markdownify>=0.13` |
-| `tests/unit/test_tools.py` | +9 тестов |
-| `docs/dialogs/test4-web-search.log` | новый acceptance-прогон |
-| `docker-compose.yml` | env-substitution + `LLM_TIMEOUT=180` |
-| `Makefile` | `run` больше не триггерит `build` |
-| `.env.example` | добавлен `LLM_TIMEOUT` |
-
-### Uncertainty list
-
-1. ~~DDG может отдавать JS-only страницу~~ — `html.duckduckgo.com/html/` отдаёт чистый HTML. Проверено live.
-2. ~~`markdownify` раздувает вывод~~ — стриппер убирает script/style/nav/footer/aside до конвертации; + cap 5 KB.
-3. ~~UA-блокировка~~ — проставили стандартный UA; DDG пока отдаёт.
-
-### Pending action items
-
-(пусто — задача закрыта)
-
-### TDD phases
-
-- [x] Phase 0 — Research: DDG HTML endpoint живой, отдаёт `div.result`.
-- [x] Phase 1 — Core: `web_search` + `_html_to_markdown` в tools.py, регистрация в executor.
-- [x] Phase 2 — Testing: 9 юнитов с respx-моком DDG и inline-HTML фикстурами.
-- [x] Phase 3 — Integration: `make build` с новыми deps, live-прогон через lemonade.
-- [x] Phase 4 — Docs: task spec D-02, sprint doc, architecture.md, contracts.
+| `src/agent/llm.py` | +`ChatResult` dataclass, `chat()` возвращает `ChatResult` вместо str |
+| `src/agent/agent.py` | импорт `ChatResult`, `_tok_segment()` хелпер, аккумуляторы, `_print_total()` хелпер |
+| `tests/unit/test_agent.py` | `ScriptedLLM` авто-оборачивает str → `ChatResult`; +2 теста |
+| `docs/dialogs/test6-token-usage.log` | acceptance-лог |
+| `README.md` | обновлён формат вывода и счётчик тестов (60) |
 
 ### Regression watch
 
-- DDG может поменять разметку результатов — при `"No results."` на явном запросе проверить селекторы `div.result`, `a.result__a`, `.result__snippet`.
-- `markdownify` строго зависит от `bs4`; смена parser'а (`html.parser` → `lxml`) может слегка изменить вывод — если добавим `lxml`, нужно прогнать существующие HTML-юниты.
-- Если агент станет часто получать `429 Too Many Requests` от DDG — подмешать exponential backoff в `web_search` (сейчас нет).
-
-### Checkpoints
-
-**Phase 2 checkpoint:** 56/56 unit (было 47/47, +9 на web_search/html-md).
-
-**Phase 3 checkpoint:** live-прогон в ~30 s, 2 шага (web_search → final_answer), выдача 5 результатов с заголовками + URL + сниппетами.
+- Если lemonade перестанет отдавать `usage` (после апгрейда или со сменой провайдера) — суффикс просто исчезнет. Юнит `test_token_segment_omitted_when_usage_absent` это закрепляет.
+- `ChatResult` — frozen dataclass, нельзя случайно мутировать.
 
 ### History
 
-- 2026-04-22 — started, изменения прилетели post-sprint-1 без спеки
-- 2026-04-23 — ретроактивно оформлено как D-02 в Sprint 2; добавлены юниты, acceptance-лог, docs; Merged
-
----
-
-## D-03 — CLI `--model` flag
-
-### Метадата
-
-| Поле | Значение |
-|---|---|
-| **Task ID** | `D-03` |
-| **Branch** | `main` |
-| **Task spec** | [docs/tasks/D-03_CLI_MODEL_FLAG.md](tasks/D-03_CLI_MODEL_FLAG.md) |
-| **Started** | 2026-04-23 |
-| **Status** | `Merged` |
-| **Owner** | stan |
-
-### Goal
-
-Разрешить смену модели прямо из CLI (`--model`) и Makefile (`MODEL=…`), не обращаясь к env.
-
-### Success criteria (verifiable)
-
-- [x] `make test` — 57/57 (было 56, +1 тест)
-- [x] `python -m agent --help` показывает `--model`
-- [x] `make run TASK='...' MODEL=Qwen3-0.6B-GGUF` работает и печатает выбранную модель в header
-
-### Impact / change surface
-
-| Файл | Что изменилось |
-|---|---|
-| `src/agent/__main__.py` | +`--model` argparse-флаг, +`replace(settings, llm_model=...)` |
-| `tests/unit/test_cli.py` | +`test_model_flag_override` |
-| `Makefile` | +переменная `MODEL ?=`, +`_MODEL_ARG = $(if $(MODEL),--model $(MODEL),)` |
-| `README.md` | +пример с MODEL= и --model, пояснение приоритета |
-
-### History
-
-- 2026-04-23 — открыт и реализован, Merged
-
----
-
-## D-04 — Step timings
-
-### Метадата
-
-| Поле | Значение |
-|---|---|
-| **Task ID** | `D-04` |
-| **Branch** | `main` |
-| **Task spec** | [docs/tasks/D-04_STEP_TIMINGS.md](tasks/D-04_STEP_TIMINGS.md) |
-| **Started** | 2026-04-23 |
-| **Status** | `Merged` |
-| **Owner** | stan |
-
-### Goal
-
-Замерять и печатать длительность LLM-запроса и tool-выполнения на каждом шаге, плюс итоговое время и количество шагов.
-
-### Success criteria (verifiable)
-
-- [x] `make test` — 58/58 (+1 юнит `test_step_and_total_timings_are_printed`)
-- [x] Live-прогон показывает `(llm X.XXs · tool X.XXs)` в заголовке шага
-- [x] Финальный шаг показывает `(llm X.XXs)` и затем `Total: X.XXs, N step(s)`
-- [x] Acceptance-лог [docs/dialogs/test5-timings.log](dialogs/test5-timings.log)
-
-### Impact / change surface
-
-| Файл | Что изменилось |
-|---|---|
-| `src/agent/agent.py` | +`import time`, замеры `perf_counter` вокруг llm.chat и executor.execute, новый формат заголовков, `Total:` footer |
-| `tests/unit/test_agent.py` | +`test_step_and_total_timings_are_printed` |
-| `docs/dialogs/test5-timings.log` | demo-лог с таймингами на ТЗ-тесте №1 |
-
-### History
-
-- 2026-04-23 — открыт по запросу пользователя, реализован + юнит + acceptance-лог, Merged
-
----
-
-## D-05 — Auto-save run logs
-
-### Метадата
-
-| Поле | Значение |
-|---|---|
-| **Task ID** | `D-05` |
-| **Branch** | `main` |
-| **Task spec** | [docs/tasks/D-05_AUTO_SAVE_LOGS.md](tasks/D-05_AUTO_SAVE_LOGS.md) |
-| **Started** | 2026-04-23 |
-| **Status** | `Merged` |
-| **Owner** | stan |
-
-### Goal
-
-Флаг `SAVE=1` в Makefile сохраняет вывод агента в `docs/dialogs/run-<timestamp>.log` параллельно с печатью в терминал. Файлы вне git.
-
-### Success criteria (verifiable)
-
-- [x] `make run TASK='...' SAVE=1` создаёт `docs/dialogs/run-<ts>.log` с полным выводом
-- [x] Без `SAVE=1` поведение не меняется
-- [x] `git status` не видит `run-*.log` (исключение в `.gitignore`)
-- [x] Acceptance-снимки `test*-*.log` продолжают трекаться
-
-### Impact / change surface
-
-| Файл | Что изменилось |
-|---|---|
-| `Makefile` | +`SAVE ?=`, +`_LOG_FILE`, +`_RUN_CMD`, условная ветка `tee` в `run` |
-| `.gitignore` | +`docs/dialogs/run-*.log` |
-| `README.md` | +пример `SAVE=1` |
-
-### History
-
-- 2026-04-23 — открыт и реализован, Merged
+- 2026-04-25 — открыт после live-сравнения 0.6B vs 4B; пользователь спросил «где смотришь токены?» — оказалось, lemonade отдаёт по дефолту, выкидывали зря. Реализован, Merged.

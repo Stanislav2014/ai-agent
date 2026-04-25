@@ -8,12 +8,13 @@ from agent.agent import (
     MAX_STEPS_MESSAGE,
 )
 from agent.executor import Executor
+from agent.llm import ChatResult
 
 
 class ScriptedLLM:
-    """Replays a list of raw response strings in order."""
+    """Replays a list of raw response strings (or ChatResult) in order."""
 
-    def __init__(self, responses: Iterable[str]) -> None:
+    def __init__(self, responses: Iterable) -> None:
         self._responses = list(responses)
         self.calls: list[list[dict]] = []
 
@@ -21,7 +22,10 @@ class ScriptedLLM:
         self.calls.append(list(messages))
         if not self._responses:
             raise AssertionError("ScriptedLLM ran out of responses")
-        return self._responses.pop(0)
+        item = self._responses.pop(0)
+        if isinstance(item, ChatResult):
+            return item
+        return ChatResult(content=item)
 
 
 def test_happy_path_single_tool_then_final():
@@ -129,3 +133,39 @@ def test_step_and_total_timings_are_printed(capsys):
     # total summary present
     assert "Total:" in out
     assert "step(s)" in out
+
+
+def test_token_usage_is_printed_and_summed(capsys):
+    llm = ScriptedLLM(
+        [
+            ChatResult(
+                content='{"action": "calculator", "args": {"expression": "2+2"}}',
+                prompt_tokens=500,
+                completion_tokens=20,
+            ),
+            ChatResult(
+                content='{"final_answer": "4"}',
+                prompt_tokens=525,
+                completion_tokens=8,
+            ),
+        ]
+    )
+    agent = Agent(llm=llm, executor=Executor(), max_steps=3)
+    agent.run("add")
+    out = capsys.readouterr().out
+    assert "500 in / 20 out" in out
+    assert "525 in / 8 out" in out
+    assert "1025 in / 28 out" in out
+
+
+def test_token_segment_omitted_when_usage_absent(capsys):
+    llm = ScriptedLLM(
+        [
+            '{"action": "calculator", "args": {"expression": "2+2"}}',
+            '{"final_answer": "4"}',
+        ]
+    )
+    agent = Agent(llm=llm, executor=Executor(), max_steps=3)
+    agent.run("add")
+    out = capsys.readouterr().out
+    assert " in / " not in out
