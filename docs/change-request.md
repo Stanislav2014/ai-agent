@@ -61,3 +61,49 @@
 ### History
 
 - 2026-04-25 — открыт после live-сравнения 0.6B vs 4B; пользователь спросил «где смотришь токены?» — оказалось, lemonade отдаёт по дефолту, выкидывали зря. Реализован, Merged.
+
+---
+
+## D-07 — Lemonade timings (cache_n + rates)
+
+### Метадата
+
+| Поле | Значение |
+|---|---|
+| **Task ID** | `D-07` |
+| **Branch** | `main` |
+| **Task spec** | [docs/tasks/D-07_LEMONADE_TIMINGS.md](tasks/D-07_LEMONADE_TIMINGS.md) |
+| **Started** | 2026-04-25 |
+| **Status** | `Merged` |
+| **Owner** | stan |
+
+### Goal
+
+Развернуть в `ChatResult` и в выводе шага богатую секцию `timings` от lemonade: `cache_n` (KV-cache hits), `prompt_per_second` (prefill rate), `predicted_per_second` (generation rate), `prompt_ms` / `predicted_ms`. Раньше всё это выкидывалось.
+
+### Success criteria (verifiable)
+
+- [x] `make test` — 61/61 (+1 тест на печать timings)
+- [x] Live-прогон 4B на task `read_file → final`:
+  - Step 1: `cache 462 · pf 17/s · gen 17/s` (горячий prefix от прошлого прогона)
+  - Step 2: `cache 489 · pf 97/s · gen 18/s`
+  - Total: 2.64s vs 10.08s холодного прогона
+- [x] Acceptance-лог [docs/dialogs/test7-lemonade-timings.log](dialogs/test7-lemonade-timings.log)
+- [x] При отсутствии `timings` в ответе сегмент молча пропадает
+
+### Impact / change surface
+
+| Файл | Что изменилось |
+|---|---|
+| `src/agent/llm.py` | +5 полей в `ChatResult`, +`_extract_timings()` (через `model_extra` fallback) |
+| `src/agent/agent.py` | сигнатура `_tok_segment(result)` (было `(p, c)`), сборка через `parts: list[str]` |
+| `tests/unit/test_agent.py` | +`test_lemonade_timings_are_printed_in_step_header`; `omitted_when_usage_absent` дополнен проверкой `cache `/`pf ` |
+| `docs/dialogs/test7-lemonade-timings.log` | acceptance-лог с горячим cache |
+
+### Findings
+
+Lemonade держит KV-cache в своём процессе — между независимыми запусками `docker compose run --rm agent` cache сохраняется, если системный промпт совпадает. Это меняет арифметику бенчмарков: для честного сравнения моделей нужно либо прогревать одинаково, либо рестартить lemonade-сервер перед каждым прогоном.
+
+### History
+
+- 2026-04-25 — открыт сразу после D-06 на запрос «уровень 1» из списка дополнительных метрик; реализован, проверен. Merged.

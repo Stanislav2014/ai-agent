@@ -169,3 +169,36 @@ def test_token_segment_omitted_when_usage_absent(capsys):
     agent.run("add")
     out = capsys.readouterr().out
     assert " in / " not in out
+    assert "cache " not in out
+    assert "pf " not in out
+
+
+def test_lemonade_timings_are_printed_in_step_header(capsys):
+    llm = ScriptedLLM(
+        [
+            ChatResult(
+                content='{"action": "calculator", "args": {"expression": "2+2"}}',
+                prompt_tokens=463,
+                completion_tokens=27,
+                cache_n=0,
+                prompt_per_second=50.7,
+                predicted_per_second=12.8,
+            ),
+            ChatResult(
+                content='{"final_answer": "4"}',
+                prompt_tokens=517,
+                completion_tokens=11,
+                cache_n=462,
+                prompt_per_second=540.2,
+                predicted_per_second=12.6,
+            ),
+        ]
+    )
+    agent = Agent(llm=llm, executor=Executor(), max_steps=3)
+    agent.run("add")
+    out = capsys.readouterr().out
+    assert "cache 0" in out
+    assert "cache 462" in out
+    assert "pf 51/s" in out  # rounded
+    assert "gen 13/s" in out
+    assert "pf 540/s" in out

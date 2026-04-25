@@ -10,6 +10,7 @@
 | D-04 | Per-step timings `(llm … · tool …)` + итоговый `Total:` | ✅ | 2 | [D-04_STEP_TIMINGS.md](tasks/D-04_STEP_TIMINGS.md) |
 | D-05 | Auto-save run logs через `make run SAVE=1` | ✅ | 2 | [D-05_AUTO_SAVE_LOGS.md](tasks/D-05_AUTO_SAVE_LOGS.md) |
 | D-06 | Token usage в выводе шага и итоге (`N in / M out`) | ✅ | 3 | [D-06_TOKEN_USAGE.md](tasks/D-06_TOKEN_USAGE.md) |
+| D-07 | Lemonade timings в шаге: `cache_n` + `pf X/s · gen Y/s` | ✅ | 3 | [D-07_LEMONADE_TIMINGS.md](tasks/D-07_LEMONADE_TIMINGS.md) |
 
 ## Phase A — critical defects
 

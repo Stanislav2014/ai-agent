@@ -5,9 +5,9 @@
 - JSON-prompting loop (`thought → action → observation → …`)
 - Четыре инструмента: `calculator`, `read_file`, `http_get` (c HTML→MD), `web_search` (DuckDuckGo)
 - `MAX_STEPS=8` + loop-guard
-- Per-step timings + token usage: `(llm X.XXs · tool X.XXs · N in / M out)` + `Total: X.XXs, K step(s), TIN in / TOUT out`
+- Per-step timings + token usage + lemonade KV-cache: `(llm X.XXs · tool X.XXs · N in / M out · cache K · pf P/s · gen G/s)` + `Total: …`
 - Docker compose на общей `llm-net`
-- 60 unit + 3 integration tests
+- 61 unit + 3 integration tests
 
 ## Быстрый старт
 
@@ -59,7 +59,7 @@ make run TASK='...' SAVE=1
 ## Тесты
 
 ```bash
-make test        # 60 unit в контейнере
+make test        # 61 unit в контейнере
 make test-cov    # с coverage
 make test-int    # 3 integration против live lemonade
 ```

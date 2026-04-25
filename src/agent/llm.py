@@ -19,10 +19,30 @@ class ChatResult:
     content: str
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    cache_n: int = 0
+    prompt_per_second: float = 0.0
+    predicted_per_second: float = 0.0
+    prompt_ms: float = 0.0
+    predicted_ms: float = 0.0
 
 
 class LLMClient(Protocol):
     def chat(self, messages: Sequence[dict]) -> ChatResult: ...
+
+
+def _extract_timings(completion) -> dict:
+    """Pull lemonade's `timings` extension off an OpenAI-SDK completion object."""
+    timings = getattr(completion, "timings", None)
+    if timings is None:
+        model_extra = getattr(completion, "model_extra", None)
+        if isinstance(model_extra, dict):
+            timings = model_extra.get("timings")
+    if timings is None:
+        return {}
+    if isinstance(timings, dict):
+        return timings
+    fields = ("cache_n", "prompt_per_second", "predicted_per_second", "prompt_ms", "predicted_ms")
+    return {f: getattr(timings, f, None) for f in fields}
 
 
 class LLMProvider:
@@ -58,8 +78,14 @@ class LLMProvider:
         usage = getattr(completion, "usage", None)
         prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
         completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+        t = _extract_timings(completion)
         return ChatResult(
             content=content,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            cache_n=int(t.get("cache_n") or 0),
+            prompt_per_second=float(t.get("prompt_per_second") or 0.0),
+            predicted_per_second=float(t.get("predicted_per_second") or 0.0),
+            prompt_ms=float(t.get("prompt_ms") or 0.0),
+            predicted_ms=float(t.get("predicted_ms") or 0.0),
         )

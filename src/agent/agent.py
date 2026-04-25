@@ -23,10 +23,27 @@ class _Chatty(Protocol):
     def chat(self, messages: Sequence[dict]) -> ChatResult: ...
 
 
-def _tok_segment(prompt_tokens: int, completion_tokens: int) -> str:
-    if prompt_tokens or completion_tokens:
-        return f" · {prompt_tokens} in / {completion_tokens} out"
-    return ""
+def _tok_segment(result: ChatResult) -> str:
+    parts: list[str] = []
+    if result.prompt_tokens or result.completion_tokens:
+        parts.append(f"{result.prompt_tokens} in / {result.completion_tokens} out")
+    has_timings = (
+        result.cache_n
+        or result.prompt_per_second
+        or result.predicted_per_second
+    )
+    if has_timings:
+        parts.append(f"cache {result.cache_n}")
+        rates: list[str] = []
+        if result.prompt_per_second:
+            rates.append(f"pf {result.prompt_per_second:.0f}/s")
+        if result.predicted_per_second:
+            rates.append(f"gen {result.predicted_per_second:.0f}/s")
+        if rates:
+            parts.append(" · ".join(rates))
+    if not parts:
+        return ""
+    return " · " + " · ".join(parts)
 
 
 class Agent:
@@ -60,7 +77,7 @@ class Agent:
             raw = result.content
             total_in += result.prompt_tokens
             total_out += result.completion_tokens
-            tok = _tok_segment(result.prompt_tokens, result.completion_tokens)
+            tok = _tok_segment(result)
 
             try:
                 data = parse_llm_response(raw)
